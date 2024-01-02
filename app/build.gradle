@@ -1,0 +1,73 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ch.fishinglocation'
+    compileSdk 32
+
+    defaultConfig {
+        applicationId "com.ch.fishinglocation"
+        minSdk 28
+        targetSdk 32
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+repositories {
+    mavenCentral()
+    google()
+    maven { url 'https://artifact.bytedance.com/repository/AwemeOpenSDK' }
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.5.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1'
+    implementation 'androidx.navigation:navigation-fragment:2.4.1'
+    implementation 'androidx.navigation:navigation-ui:2.4.1'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.4'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+    implementation 'com.blankj:utilcodex:1.31.0'
+    implementation 'com.tencent.bugly:crashreport:2.6.6.1'
+    implementation 'cn.leancloud:storage-android:8.1.1'
+    //3D地图so及jar
+    implementation 'com.amap.api:3dmap:latest.integration'
+//    //定位功能
+//    implementation 'com.amap.api:location:latest.integration'
+    //搜索功能
+    implementation 'com.amap.api:search:latest.integration'
+
+    //广告业务相关引入
+//    implementation(name: 'tools-release', ext: 'aar')
+    implementation(name: 'open_ad_sdk', ext: 'aar')
+    implementation "com.bytedance.ies.ugc.aweme:opensdk-china-external:0.1.8.0"
+    implementation "com.bytedance.ies.ugc.aweme:opensdk-common:0.1.8.0"
+
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    implementation 'com.squareup.okhttp3:okhttp:3.12.1'
+}
