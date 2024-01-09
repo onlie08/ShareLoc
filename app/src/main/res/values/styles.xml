@@ -1,0 +1,23 @@
+<resources>
+
+    <style name="Widget.Theme.FishingLocation.ActionBar.Fullscreen" parent="Widget.AppCompat.ActionBar">
+        <item name="android:background">@color/black_overlay</item>
+    </style>
+
+    <style name="Widget.Theme.FishingLocation.ButtonBar.Fullscreen" parent="">
+        <item name="android:background">@color/black_overlay</item>
+        <item name="android:buttonBarStyle">?android:attr/buttonBarStyle</item>
+    </style>
+    <!-- 搜索框样式 -->
+    <style name="SearchBarStyle">
+        <item name="android:background">@drawable/bg_search</item>
+        <!-- 预定义其他样式属性 -->
+    </style>
+
+    <!-- 筛选按钮样式 -->
+    <style name="FilterButtonStyle">
+        <item name="android:background">@drawable/bg_filter_button</item>
+        <!-- 预定义其他样式属性 -->
+    </style>
+
+</resources>

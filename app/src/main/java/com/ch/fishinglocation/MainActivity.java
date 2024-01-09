@@ -9,6 +9,7 @@ import com.blankj.utilcode.constant.PermissionConstants;
 import com.blankj.utilcode.util.PermissionUtils;
 import com.blankj.utilcode.util.ToastUtils;
 import com.blankj.utilcode.util.UtilsTransActivity;
+import com.bytedance.sdk.openadsdk.TTAdSdk;
 import com.ch.fishinglocation.ad.TTAdManagerHolder;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -80,6 +81,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void initAd() {
         TTAdManagerHolder.init(MainActivity.this.getApplicationContext());
+        TTAdSdk.start(new TTAdSdk.Callback() {
+            @Override
+            public void success() {
+
+            }
+
+            @Override
+            public void fail(int i, String s) {
+
+            }
+        });
     }
 
     private void initMap() {

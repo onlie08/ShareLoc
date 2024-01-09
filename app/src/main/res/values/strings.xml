@@ -1,6 +1,12 @@
 <resources>
-    <string name="app_name">钓鱼小助手</string>
+    <string name="app_name">钓鱼助手</string>
     <string name="title_home">钓点</string>
     <string name="title_dashboard">天气</string>
     <string name="title_notifications">个人中心</string>
+    <string name="title_activity_fullscreen">FullscreenActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="locate">定位</string>
+    <string name="search_hint">搜索钓点</string>
+    <string name="filter">筛选</string>
 </resources>

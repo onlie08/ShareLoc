@@ -26,7 +26,7 @@ public class MyApplication extends Application {
 
     private void initLeancloud() {
         try {
-            LeanCloud.initialize("XzTIwH2Ekw8kjJVlUScYC27S-gzGzoHsz", "uMHJnQE3XHN3cb82RUK8DpHs", "https://xztiwh2e.lc-cn-n1-shared.com");
+            LeanCloud.initialize("pI5NbfmB4kh2AEir2i9WbIAf-gzGzoHsz", "WbbHTxNy4STZrGkqAz1b5nlV", "https://pi5nbfmb.lc-cn-n1-shared.com");
         } catch (Exception e) {
             Log.e(TAG,e.getMessage());
         }
