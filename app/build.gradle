@@ -16,18 +16,40 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
     buildFeatures {
         viewBinding true
+    }
+
+    signingConfigs {
+        signconfig {
+            storeFile file("../keystore.jks")
+            storePassword "sf123456"
+            keyAlias "key0"
+            keyPassword "sf123456"
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            zipAlignEnabled true
+            // 资源压缩，移除无用的资源文件
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.signconfig //加入签名配置
+        }
+        debug {
+            // 不开启混淆
+            minifyEnabled false
+            // 不需要ZIP优化
+            zipAlignEnabled true
+            // 不需要资源压缩
+            shrinkResources false
+            signingConfig signingConfigs.signconfig
+        }
     }
 }
 

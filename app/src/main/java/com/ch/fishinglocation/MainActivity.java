@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initPermission() {
-        PermissionUtils.permission(PermissionConstants.CAMERA, PermissionConstants.STORAGE)
+        PermissionUtils.permission(PermissionConstants.CAMERA, PermissionConstants.STORAGE, PermissionConstants.LOCATION)
                 .rationale((activity, shouldRequest) -> shouldRequest.again(true))
                 .callback(new PermissionUtils.FullCallback() {
                     @Override

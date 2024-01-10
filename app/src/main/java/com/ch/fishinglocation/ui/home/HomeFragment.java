@@ -1,10 +1,8 @@
 package com.ch.fishinglocation.ui.home;
 
-import static com.ch.fishinglocation.network.FishingSpotService.getFishingSpots;
-
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -29,13 +27,14 @@ import com.amap.api.maps.MapView;
 import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
-import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
+import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.PolygonOptions;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.databinding.FragmentHomeBinding;
 import com.ch.fishinglocation.network.FishingSpotService;
 import com.ch.fishinglocation.network.FishingSpotUploader;
+import com.ch.fishinglocation.ui.activity.DataCollectionActivity;
 import com.google.gson.Gson;
 
 import java.util.Arrays;
@@ -128,7 +127,27 @@ public class HomeFragment extends Fragment {
         View root = binding.getRoot();
         mMapView = binding.mapView;
         mMapView.onCreate(savedInstanceState);
+        binding.buttonToggleLayer.setOnClickListener(view -> toggleMapLayer());
+        binding.btnUpload.setOnClickListener(view -> navigateTo(DataCollectionActivity.class));
         return root;
+    }
+
+    private void navigateTo(Class<DataCollectionActivity> dataCollectionActivityClass) {
+        Intent intent = new Intent();
+        intent.setClass(getActivity(),dataCollectionActivityClass);
+        startActivity(intent);
+    }
+
+    private void toggleMapLayer() {
+        if (aMap != null) {
+            if (aMap.getMapType() == AMap.MAP_TYPE_NORMAL) {
+                // 切换到卫星影像图
+                aMap.setMapType(AMap.MAP_TYPE_SATELLITE);
+            } else {
+                // 切换回矢量图
+                aMap.setMapType(AMap.MAP_TYPE_NORMAL);
+            }
+        }
     }
 
     @Override
@@ -153,8 +172,9 @@ public class HomeFragment extends Fragment {
 
     // 设置定位参数和样式
     private void setupLocationStyle() throws Exception {
+
         // 初始化定位
-        locationClient = new AMapLocationClient(getContext());
+        locationClient = new AMapLocationClient(getActivity());
         locationOption = new AMapLocationClientOption();
 
         // 设置定位模式为高精度模式，GPS和网络同时使用
@@ -178,34 +198,41 @@ public class HomeFragment extends Fragment {
     AMapLocationListener locationListener = new AMapLocationListener() {
         @Override
         public void onLocationChanged(AMapLocation location) {
+            Log.e(TAG, new Gson().toJson(location));
             if (location != null && location.getErrorCode() == 0) {
-                Log.e("onLocationChanged", new Gson().toJson(location));
+                Log.e(TAG, new Gson().toJson(location));
                 if (isFirstLocate) {
                     // 首次定位成功，将地图移动到定位位置
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
                     isFirstLocate = false; // 更新首次定位标记
+                    locationListener.onLocationChanged(location);// 显示系统小蓝点
                 }
                 // 后续定位更新可以在这里处理
             } else {
                 // 定位失败处理
                 String errorText = "定位失败," + location.getErrorCode() + ": " + location.getErrorInfo();
-                Log.e("AMapLocation", errorText);
+                Log.e(TAG, errorText);
             }
         }
     };
 
     private void setUpMap() {
-//        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-//                != PackageManager.PERMISSION_GRANTED) {
-//            ActivityCompat.requestPermissions(getActivity(),
-//                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-//                    LOCATION_PERMISSION_REQUEST_CODE);
-//        } else {
+        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(getActivity(),
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
             // 配置地图的定位参数
+        MyLocationStyle myLocationStyle;
+        myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
+        myLocationStyle.interval(2000); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
+        myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
+        aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
             aMap.setMyLocationEnabled(true); // 显示定位层并可触发定位
             aMap.getUiSettings().setMyLocationButtonEnabled(true); // 设置默认定位按钮是否显示
-            aMap.moveCamera(CameraUpdateFactory.zoomTo(15)); // 设置缩放级别
+            aMap.moveCamera(CameraUpdateFactory.zoomTo(18)); // 设置缩放级别
             // 设置地图的点击事件
             aMap.setOnMapClickListener(latLng -> {
                 // 点击地图其他地方隐藏钓点信息窗体
@@ -220,10 +247,10 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onCameraChangeFinish(CameraPosition cameraPosition) {
                     // 当地图停止滑动时，加载新区域的钓点
-                    loadFishingSpots(cameraPosition.target);
+//                    loadFishingSpots(cameraPosition.target);
                 }
             });
-//        }
+        }
     }
 
     @Override

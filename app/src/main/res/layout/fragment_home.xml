@@ -14,54 +14,75 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" >
+
+    </com.amap.api.maps.MapView>
 
     <!-- 定位按钮 -->
     <ImageButton
         android:id="@+id/btn_locate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_location"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="66dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/locate"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:src="@drawable/ic_location"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- 搜索/筛选条 -->
+
+    <Button
+        android:id="@+id/buttonToggleLayer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="影像图"
+        app:layout_constraintTop_toBottomOf="@+id/search_bar"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btn_upload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="上传钓点"
+        app:layout_constraintBottom_toTopOf="@+id/btn_locate"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <LinearLayout
         android:id="@+id/search_bar"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="60dp"
         android:background="#AAFFFFFF"
-        android:padding="16dp"
         android:elevation="4dp"
         android:orientation="horizontal"
-        app:layout_constraintTop_toTopOf="parent"
+        android:padding="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
         <EditText
             android:id="@+id/et_search"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="@string/search_hint"
             android:background="@drawable/bg_search"
             android:drawableStart="@drawable/ic_search"
             android:drawablePadding="8dp"
+            android:hint="@string/search_hint"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp"
             android:paddingTop="8dp"
+            android:paddingEnd="12dp"
             android:paddingBottom="8dp" />
 
         <Button
             android:id="@+id/btn_filter"
+            style="@style/FilterButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/filter"
-            style="@style/FilterButtonStyle" />
+            android:text="@string/filter" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
