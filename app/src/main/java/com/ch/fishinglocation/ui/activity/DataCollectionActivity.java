@@ -1,14 +1,23 @@
 package com.ch.fishinglocation.ui.activity;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.PixelCopy;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -24,8 +33,11 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
+import com.amap.api.maps.model.PolygonOptions;
 import com.ch.fishinglocation.R;
 import com.ch.fishinglocation.bean.FishingSpot;
+import com.ch.fishinglocation.ui.view.DrawingView;
+import com.ch.fishinglocation.ui.view.MagnifierView;
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
@@ -44,6 +56,7 @@ public class DataCollectionActivity extends AppCompatActivity {
     private Button btnAddPloygon;
     private Button btnAddWalking;
     private Button buttonToggleLayer;
+    private DrawingView drawingView;
     private MapView mMapView;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private AMap aMap;
@@ -56,6 +69,9 @@ public class DataCollectionActivity extends AppCompatActivity {
     private List<Marker> spotMarkerList = new ArrayList<>();
     private List<Marker> parkingMarkerList = new ArrayList<>();
 
+    private MagnifierView magnifierView;
+    private ConstraintLayout rootView; // 用于放置放大镜的根布局
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,12 +79,15 @@ public class DataCollectionActivity extends AppCompatActivity {
         setContentView(R.layout.activity_data_collection);
         mMapView = findViewById(R.id.map_view);
         mMapView.onCreate(savedInstanceState);
+        aMap = mMapView.getMap();
+        mMapView.setDrawingCacheEnabled(true);
+        mMapView.buildDrawingCache(true);
         initView();
         initData();
     }
 
     private void initView() {
-
+        drawingView = findViewById(R.id.drawingView);
         editTextName = findViewById(R.id.editName);
         editTextDescription = findViewById(R.id.editDescription);
         btnAddSpot = findViewById(R.id.btnAddSpot);
@@ -91,7 +110,27 @@ public class DataCollectionActivity extends AppCompatActivity {
         btnAddParking.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                addMarkerToMap(PARKING_MARKER);
+//                addMarkerToMap(PARKING_MARKER);
+                if (drawingView.getVisibility() == View.GONE) {
+                    // 启动绘图模式
+                    drawingView.setVisibility(View.VISIBLE);
+                    aMap.getUiSettings().setAllGesturesEnabled(false);
+                    drawingView.setProjection(aMap.getProjection()); // 设置Projection对象
+                } else {
+                    // 结束绘图模式并获取点
+                    drawingView.setVisibility(View.GONE);
+                    aMap.getUiSettings().setAllGesturesEnabled(true);
+                    List<LatLng> latLngs = drawingView.getPoints();
+                    // 在地图上绘制多边形
+                    if (latLngs != null && latLngs.size() > 1) {
+                        aMap.addPolygon(new PolygonOptions()
+                                .addAll(latLngs)
+                                .fillColor(0x0D00FF00)
+                                .strokeColor(0x3300FF00)
+                                .strokeWidth(5));
+                    }
+                    drawingView.clear();
+                }
             }
         });
 
@@ -106,7 +145,88 @@ public class DataCollectionActivity extends AppCompatActivity {
                 // Then, you can upload the FishingSpot using FishingSpotUploader
             }
         });
+
+        rootView = findViewById(R.id.constraint); // 假设你有一个 FrameLayout 作为根布局
+        magnifierView = new MagnifierView(this, 200, 2.0f); // 创建放大镜视图
+        ConstraintLayout.LayoutParams lp = new ConstraintLayout.LayoutParams(200, 200);
+        rootView.addView(magnifierView, lp); // 添加放大镜视图
+        magnifierView.setVisibility(View.VISIBLE); // 初始设置为隐藏
+
+        aMap.setOnMapTouchListener(new AMap.OnMapTouchListener() {
+            @Override
+            public void onTouch(MotionEvent event) {
+                // 在这里处理触摸事件，如显示放大镜
+                if (event.getAction() == MotionEvent.ACTION_MOVE) {
+//                    showMagnifier(event);
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    magnifierView.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+
     }
+
+//    private void captureMapScreen(final MagnifierView magnifierView, final MotionEvent event) {
+//        final Bitmap bitmap = Bitmap.createBitmap(mMapView.getWidth(), mMapView.getHeight(), Bitmap.Config.ARGB_8888);
+//        PixelCopy.request(mMapView, bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
+//            @Override
+//            public void onPixelCopyFinished(int result) {
+//                if (result == PixelCopy.SUCCESS) {
+//                    // 在这里处理 Bitmap，例如显示在放大镜中
+//                    showMagnifier(event, bitmap, magnifierView);
+//                } else {
+//                    // 处理失败情况
+//                }
+//            }
+//        }, new Handler(Looper.getMainLooper()));
+//    }
+
+//    private void showMagnifier(MotionEvent event, Bitmap bitmap, MagnifierView magnifierView) {
+//        int[] location = new int[2];
+//        mMapView.getLocationOnScreen(location);
+//        int x = (int) event.getRawX() - location[0];
+//        int y = (int) event.getRawY() - location[1];
+//        int magnifierDiameter = 100;
+//        // 根据触摸位置计算要放大的区域，确保不超出 bitmap 的边界
+//        int left = Math.max(0, x - magnifierDiameter / 2);
+//        int top = Math.max(0, y - magnifierDiameter / 2);
+//        int right = Math.min(bitmap.getWidth(), x + magnifierDiameter / 2);
+//        int bottom = Math.min(bitmap.getHeight(), y + magnifierDiameter / 2);
+//
+//        // 创建一个放大的 Bitmap 区域
+//        Bitmap magnifierContent = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top);
+//
+//        // 将放大的 Bitmap 设置到放大镜视图中
+//        magnifierView.setBitmap(magnifierContent);
+//        magnifierView.setX(event.getRawX() - magnifierView.getWidth() / 2);
+//        magnifierView.setY(event.getRawY() - magnifierView.getHeight() * 1.5f);
+//        magnifierView.setVisibility(View.VISIBLE);
+//        magnifierView.invalidate();
+//    }
+
+
+//    private void showMagnifier(MotionEvent event) {
+//        Log.d(TAG,"showMagnifier");
+//        int[] location = new int[2];
+//        mMapView.getLocationOnScreen(location); // 获取地图在屏幕上的位置
+//
+//        // 计算触摸点相对于地图的位置
+//        int x = (int) event.getRawX() - location[0];
+//        int y = (int) event.getRawY() - location[1];
+//        Log.d(TAG,"showMagnifier x:"+x+"y:"+y);
+//        // 截取地图的一部分作为放大镜的内容
+//        Bitmap bitmap = mMapView.getDrawingCache();
+//        Log.d(TAG,"showMagnifier:"+(bitmap == null));
+//        Rect rect = new Rect(x - 100, y - 100, x + 100, y + 100);
+//        Bitmap magnifierContent = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height());
+//
+//        // 更新放大镜视图
+//        magnifierView.setBitmap(magnifierContent);
+//        magnifierView.setX(event.getRawX() - magnifierView.getWidth() / 2); // 设置放大镜的位置
+//        magnifierView.setY(event.getRawY() - magnifierView.getHeight() * 1.5f); // 设置放大镜的位置
+//        magnifierView.setVisibility(View.VISIBLE);
+//        magnifierView.invalidate(); // 强制重新绘制放大镜
+//    }
 
     private void addMarkerToMap(int spot_marker) {
         LatLng latLng = new LatLng(aMap.getCameraPosition().target.latitude,aMap.getCameraPosition().target.longitude);
