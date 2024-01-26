@@ -8,6 +8,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,6 +32,7 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.PolygonOptions;
+import com.blankj.utilcode.util.ToastUtils;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.databinding.FragmentHomeBinding;
 import com.ch.fishinglocation.network.FishingSpotService;
@@ -47,8 +50,11 @@ public class HomeFragment extends Fragment {
     private String TAG = "HomeFragment";
     private FragmentHomeBinding binding;
     private MapView mMapView;
+    private TextView tvLocing;
+    private ImageButton btnLocate;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private AMap aMap;
+    private AMapLocation lastLocation;
     private boolean isFirstLocate = true; // 用于标记是否是首次定位
 
     // 定位客户端
@@ -129,6 +135,20 @@ public class HomeFragment extends Fragment {
         mMapView.onCreate(savedInstanceState);
         binding.buttonToggleLayer.setOnClickListener(view -> toggleMapLayer());
         binding.btnUpload.setOnClickListener(view -> navigateTo(DataCollectionActivity.class));
+        tvLocing = binding.tvLocing;
+        btnLocate = binding.btnLocate;
+        btnLocate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(null != lastLocation){
+                    LatLng latLng = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
+                    aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+                }else {
+                    ToastUtils.showShort("未获取到定位信息");
+                }
+
+            }
+        });
         return root;
     }
 
@@ -201,12 +221,14 @@ public class HomeFragment extends Fragment {
             Log.e(TAG, new Gson().toJson(location));
             if (location != null && location.getErrorCode() == 0) {
                 Log.e(TAG, new Gson().toJson(location));
+                lastLocation = location;
                 if (isFirstLocate) {
                     // 首次定位成功，将地图移动到定位位置
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
                     isFirstLocate = false; // 更新首次定位标记
                     locationListener.onLocationChanged(location);// 显示系统小蓝点
+                    tvLocing.setText("已定位");
                 }
                 // 后续定位更新可以在这里处理
             } else {
@@ -218,6 +240,7 @@ public class HomeFragment extends Fragment {
     };
 
     private void setUpMap() {
+        aMap.setMapType(AMap.MAP_TYPE_SATELLITE);
         if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(getActivity(),
@@ -231,7 +254,7 @@ public class HomeFragment extends Fragment {
         myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
         aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
             aMap.setMyLocationEnabled(true); // 显示定位层并可触发定位
-            aMap.getUiSettings().setMyLocationButtonEnabled(true); // 设置默认定位按钮是否显示
+            aMap.getUiSettings().setMyLocationButtonEnabled(false); // 设置默认定位按钮是否显示
             aMap.moveCamera(CameraUpdateFactory.zoomTo(18)); // 设置缩放级别
             // 设置地图的点击事件
             aMap.setOnMapClickListener(latLng -> {

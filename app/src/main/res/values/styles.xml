@@ -20,4 +20,8 @@
         <!-- 预定义其他样式属性 -->
     </style>
 
+    <style name="NoActionBar" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
 </resources>

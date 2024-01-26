@@ -18,13 +18,37 @@
 
     </com.amap.api.maps.MapView>
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/constraint_title"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+
+        <TextView
+            android:id="@+id/tv_locing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="定位中..."
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
     <!-- 定位按钮 -->
     <ImageButton
         android:id="@+id/btn_locate"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="66dp"
+        android:layout_marginBottom="64dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/locate"
         android:src="@drawable/ic_location"
@@ -37,52 +61,43 @@
         android:id="@+id/buttonToggleLayer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="16dp"
         android:text="影像图"
-        app:layout_constraintTop_toBottomOf="@+id/search_bar"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:textColor="@color/black"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/et_search" />
 
     <Button
         android:id="@+id/btn_upload"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
         android:text="上传钓点"
+        android:textColor="@color/black"
         app:layout_constraintBottom_toTopOf="@+id/btn_locate"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <LinearLayout
-        android:id="@+id/search_bar"
+    <EditText
+        android:id="@+id/et_search"
         android:layout_width="0dp"
-        android:layout_height="60dp"
-        android:background="#AAFFFFFF"
-        android:elevation="4dp"
-        android:orientation="horizontal"
-        android:padding="16dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_search"
+        android:drawableStart="@drawable/ic_search"
+        android:drawablePadding="8dp"
+        android:hint="@string/search_hint"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/bg_search"
-            android:drawableStart="@drawable/ic_search"
-            android:drawablePadding="8dp"
-            android:hint="@string/search_hint"
-            android:paddingStart="12dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="8dp" />
-
-        <Button
-            android:id="@+id/btn_filter"
-            style="@style/FilterButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/filter" />
-    </LinearLayout>
+        app:layout_constraintTop_toBottomOf="@+id/constraint_title" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

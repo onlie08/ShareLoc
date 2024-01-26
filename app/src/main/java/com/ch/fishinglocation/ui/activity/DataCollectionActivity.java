@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -28,16 +30,20 @@ import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
+import com.amap.api.maps.model.BitmapDescriptor;
+import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.PolygonOptions;
+import com.blankj.utilcode.util.ToastUtils;
 import com.ch.fishinglocation.R;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.ui.view.DrawingView;
 import com.ch.fishinglocation.ui.view.MagnifierView;
+import com.ch.fishinglocation.ui.view.MapElementStyleConfig;
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
@@ -57,7 +63,9 @@ public class DataCollectionActivity extends AppCompatActivity {
     private Button btnAddWalking;
     private Button buttonToggleLayer;
     private DrawingView drawingView;
+    private ImageButton btnLocate;
     private MapView mMapView;
+    private AMapLocation lastLoc;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private AMap aMap;
     private boolean isFirstLocate = true; // 用于标记是否是首次定位
@@ -79,15 +87,17 @@ public class DataCollectionActivity extends AppCompatActivity {
         setContentView(R.layout.activity_data_collection);
         mMapView = findViewById(R.id.map_view);
         mMapView.onCreate(savedInstanceState);
-        aMap = mMapView.getMap();
-        mMapView.setDrawingCacheEnabled(true);
-        mMapView.buildDrawingCache(true);
+        initMapConfig();
         initView();
         initData();
     }
 
+    private void initMapConfig() {
+    }
+
     private void initView() {
         drawingView = findViewById(R.id.drawingView);
+        btnLocate = findViewById(R.id.btn_locate);
         editTextName = findViewById(R.id.editName);
         editTextDescription = findViewById(R.id.editDescription);
         btnAddSpot = findViewById(R.id.btnAddSpot);
@@ -95,138 +105,64 @@ public class DataCollectionActivity extends AppCompatActivity {
         btnAddPloygon = findViewById(R.id.btnAddPloygon);
         btnAddWalking = findViewById(R.id.btnAddWalking);
         buttonToggleLayer = findViewById(R.id.buttonToggleLayer);
-        buttonToggleLayer.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                toggleMapLayer();
-            }
-        });
-        btnAddSpot.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                addMarkerToMap(SPOT_MARKER);
-            }
-        });
-        btnAddParking.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                addMarkerToMap(PARKING_MARKER);
-                if (drawingView.getVisibility() == View.GONE) {
-                    // 启动绘图模式
-                    drawingView.setVisibility(View.VISIBLE);
-                    aMap.getUiSettings().setAllGesturesEnabled(false);
-                    drawingView.setProjection(aMap.getProjection()); // 设置Projection对象
-                } else {
-                    // 结束绘图模式并获取点
-                    drawingView.setVisibility(View.GONE);
-                    aMap.getUiSettings().setAllGesturesEnabled(true);
-                    List<LatLng> latLngs = drawingView.getPoints();
-                    // 在地图上绘制多边形
-                    if (latLngs != null && latLngs.size() > 1) {
-                        aMap.addPolygon(new PolygonOptions()
-                                .addAll(latLngs)
-                                .fillColor(0x0D00FF00)
-                                .strokeColor(0x3300FF00)
-                                .strokeWidth(5));
-                    }
-                    drawingView.clear();
-                }
-            }
-        });
-
         buttonSubmit = findViewById(R.id.buttonSubmit);
-        buttonSubmit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Collect data and submit
-                String name = editTextName.getText().toString();
-                String description = editTextDescription.getText().toString();
-                // Other data collected from the second activity should be added to the FishingSpot object
-                // Then, you can upload the FishingSpot using FishingSpotUploader
+
+        buttonToggleLayer.setOnClickListener(view -> toggleMapLayer());
+        btnAddSpot.setOnClickListener(view -> addSpot());
+        btnAddParking.setOnClickListener(view -> addParking());
+        btnAddPloygon.setOnClickListener(view -> addPloygon());
+        btnAddWalking.setOnClickListener(view -> addwalking());
+        buttonSubmit.setOnClickListener(v -> uploadData());
+        btnLocate.setOnClickListener(view -> {
+            if(null != lastLoc){
+                LatLng latLng = new LatLng(lastLoc.getLatitude(), lastLoc.getLongitude());
+                aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+            }else {
+                ToastUtils.showShort("未获取到定位信息");
             }
+
         });
-
-        rootView = findViewById(R.id.constraint); // 假设你有一个 FrameLayout 作为根布局
-        magnifierView = new MagnifierView(this, 200, 2.0f); // 创建放大镜视图
-        ConstraintLayout.LayoutParams lp = new ConstraintLayout.LayoutParams(200, 200);
-        rootView.addView(magnifierView, lp); // 添加放大镜视图
-        magnifierView.setVisibility(View.VISIBLE); // 初始设置为隐藏
-
-        aMap.setOnMapTouchListener(new AMap.OnMapTouchListener() {
-            @Override
-            public void onTouch(MotionEvent event) {
-                // 在这里处理触摸事件，如显示放大镜
-                if (event.getAction() == MotionEvent.ACTION_MOVE) {
-//                    showMagnifier(event);
-                } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    magnifierView.setVisibility(View.VISIBLE);
-                }
-            }
-        });
-
     }
 
-//    private void captureMapScreen(final MagnifierView magnifierView, final MotionEvent event) {
-//        final Bitmap bitmap = Bitmap.createBitmap(mMapView.getWidth(), mMapView.getHeight(), Bitmap.Config.ARGB_8888);
-//        PixelCopy.request(mMapView, bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
-//            @Override
-//            public void onPixelCopyFinished(int result) {
-//                if (result == PixelCopy.SUCCESS) {
-//                    // 在这里处理 Bitmap，例如显示在放大镜中
-//                    showMagnifier(event, bitmap, magnifierView);
-//                } else {
-//                    // 处理失败情况
-//                }
-//            }
-//        }, new Handler(Looper.getMainLooper()));
-//    }
+    public boolean uploadData(){
+        //todo 上传FishingSpot数据
+        return false;
+    }
 
-//    private void showMagnifier(MotionEvent event, Bitmap bitmap, MagnifierView magnifierView) {
-//        int[] location = new int[2];
-//        mMapView.getLocationOnScreen(location);
-//        int x = (int) event.getRawX() - location[0];
-//        int y = (int) event.getRawY() - location[1];
-//        int magnifierDiameter = 100;
-//        // 根据触摸位置计算要放大的区域，确保不超出 bitmap 的边界
-//        int left = Math.max(0, x - magnifierDiameter / 2);
-//        int top = Math.max(0, y - magnifierDiameter / 2);
-//        int right = Math.min(bitmap.getWidth(), x + magnifierDiameter / 2);
-//        int bottom = Math.min(bitmap.getHeight(), y + magnifierDiameter / 2);
-//
-//        // 创建一个放大的 Bitmap 区域
-//        Bitmap magnifierContent = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top);
-//
-//        // 将放大的 Bitmap 设置到放大镜视图中
-//        magnifierView.setBitmap(magnifierContent);
-//        magnifierView.setX(event.getRawX() - magnifierView.getWidth() / 2);
-//        magnifierView.setY(event.getRawY() - magnifierView.getHeight() * 1.5f);
-//        magnifierView.setVisibility(View.VISIBLE);
-//        magnifierView.invalidate();
-//    }
+    public void addSpot(){
+        addMarkerToMap(SPOT_MARKER);
+    }
 
+    public void addParking(){
+        addMarkerToMap(PARKING_MARKER);
+    }
 
-//    private void showMagnifier(MotionEvent event) {
-//        Log.d(TAG,"showMagnifier");
-//        int[] location = new int[2];
-//        mMapView.getLocationOnScreen(location); // 获取地图在屏幕上的位置
-//
-//        // 计算触摸点相对于地图的位置
-//        int x = (int) event.getRawX() - location[0];
-//        int y = (int) event.getRawY() - location[1];
-//        Log.d(TAG,"showMagnifier x:"+x+"y:"+y);
-//        // 截取地图的一部分作为放大镜的内容
-//        Bitmap bitmap = mMapView.getDrawingCache();
-//        Log.d(TAG,"showMagnifier:"+(bitmap == null));
-//        Rect rect = new Rect(x - 100, y - 100, x + 100, y + 100);
-//        Bitmap magnifierContent = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height());
-//
-//        // 更新放大镜视图
-//        magnifierView.setBitmap(magnifierContent);
-//        magnifierView.setX(event.getRawX() - magnifierView.getWidth() / 2); // 设置放大镜的位置
-//        magnifierView.setY(event.getRawY() - magnifierView.getHeight() * 1.5f); // 设置放大镜的位置
-//        magnifierView.setVisibility(View.VISIBLE);
-//        magnifierView.invalidate(); // 强制重新绘制放大镜
-//    }
+    public void addPloygon(){
+        if (drawingView.getVisibility() == View.GONE) {
+            // 启动绘图模式
+            drawingView.setVisibility(View.VISIBLE);
+            aMap.getUiSettings().setAllGesturesEnabled(false);
+            drawingView.setProjection(aMap.getProjection()); // 设置Projection对象
+        } else {
+            // 结束绘图模式并获取点
+            drawingView.setVisibility(View.GONE);
+            aMap.getUiSettings().setAllGesturesEnabled(true);
+            List<LatLng> latLngs = drawingView.getPoints();
+            // 在地图上绘制多边形
+            if (latLngs != null && latLngs.size() > 1) {
+                aMap.addPolygon(new PolygonOptions()
+                        .addAll(latLngs)
+                        .fillColor(0x0D00FF00)
+                        .strokeColor(0x3300FF00)
+                        .strokeWidth(5));
+            }
+            drawingView.clear();
+        }
+    }
+
+    public void addwalking(){
+        //todo 绘制走路线路
+    }
 
     private void addMarkerToMap(int spot_marker) {
         LatLng latLng = new LatLng(aMap.getCameraPosition().target.latitude,aMap.getCameraPosition().target.longitude);
@@ -241,6 +177,9 @@ public class DataCollectionActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 切换影像图
+     */
     private void toggleMapLayer() {
         if (aMap != null) {
             if (aMap.getMapType() == AMap.MAP_TYPE_NORMAL) {
@@ -254,6 +193,11 @@ public class DataCollectionActivity extends AppCompatActivity {
     }
 
     private void initData() {
+//        BitmapDescriptor texture = BitmapDescriptorFactory.defaultMarker();
+//        BitmapDescriptor icon = BitmapDescriptorFactory.defaultMarker();
+//        MapElementStyleConfig.MarkerStyle markerStyle = new MapElementStyleConfig.MarkerStyle(icon, 0.5f, 0.5f);
+//        MapElementStyleConfig.PolygonStyle polygonStyle = new MapElementStyleConfig.PolygonStyle(Color.BLACK, 2, Color.RED);
+//        MapElementStyleConfig.PolylineStyle polylineStyle = new MapElementStyleConfig.PolylineStyle(Color.BLUE, 5.0f, texture);
     }
 
     @Override
@@ -293,6 +237,7 @@ public class DataCollectionActivity extends AppCompatActivity {
     }
 
     private void setUpMap() {
+        aMap.setMapType(AMap.MAP_TYPE_SATELLITE);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -328,7 +273,6 @@ public class DataCollectionActivity extends AppCompatActivity {
         }
     }
 
-
     // 设置定位参数和样式
     private void setupLocationStyle() throws Exception {
 
@@ -352,7 +296,6 @@ public class DataCollectionActivity extends AppCompatActivity {
         locationClient.startLocation();
     }
 
-
     // 实现定位监听
     AMapLocationListener locationListener = new AMapLocationListener() {
         @Override
@@ -360,6 +303,7 @@ public class DataCollectionActivity extends AppCompatActivity {
             Log.e(TAG, new Gson().toJson(location));
             if (location != null && location.getErrorCode() == 0) {
                 Log.e(TAG, new Gson().toJson(location));
+                lastLoc = location;
                 if (isFirstLocate) {
                     // 首次定位成功，将地图移动到定位位置
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
