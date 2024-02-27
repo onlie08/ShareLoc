@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 
+import com.ch.fishinglocation.bean.User;
 import com.tencent.bugly.crashreport.CrashReport;
 
 import cn.leancloud.core.LeanCloud;
@@ -11,6 +12,7 @@ import cn.leancloud.core.LeanCloud;
 public class MyApplication extends Application {
     private static Context context;
     private String TAG = this.getClass().getSimpleName();
+    public static User user;
 
     public static Context getAppContext() {
         return MyApplication.context;
@@ -21,7 +23,12 @@ public class MyApplication extends Application {
         super.onCreate();
         MyApplication.context = this;
         initLeancloud();
-        CrashReport.initCrashReport(getApplicationContext(), "53144aab5a", BuildConfig.DEBUG);
+        CrashReport.initCrashReport(getApplicationContext(), "a8e59dd66f", BuildConfig.DEBUG);
+
+        user = new User();
+        user.setUsername("探钓武汉-海子");
+        user.setPhone("13720282090");
+        user.setVIP(true);
     }
 
     private void initLeancloud() {

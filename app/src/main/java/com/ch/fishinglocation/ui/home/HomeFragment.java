@@ -16,7 +16,9 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+
 import io.reactivex.Observer;
+
 import androidx.lifecycle.ViewModelProvider;
 
 import com.amap.api.location.AMapLocation;
@@ -32,12 +34,15 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.PolygonOptions;
+import com.amap.api.maps.model.Polyline;
+import com.amap.api.maps.model.PolylineOptions;
 import com.blankj.utilcode.util.ToastUtils;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.databinding.FragmentHomeBinding;
 import com.ch.fishinglocation.network.FishingSpotService;
 import com.ch.fishinglocation.network.FishingSpotUploader;
 import com.ch.fishinglocation.ui.activity.DataCollectionActivity;
+import com.ch.fishinglocation.ui.activity.NaviActivity;
 import com.google.gson.Gson;
 
 import java.util.Arrays;
@@ -63,69 +68,13 @@ public class HomeFragment extends Fragment {
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
-        Log.d(TAG,"onCreate");
+        Log.d(TAG, "onCreate");
         super.onCreate(savedInstanceState);
-//        addTestDate();
-    }
-
-    private void addTestDate() {
-        // 创建FishingSpot对象的实例
-        // 示例钓点数据
-        FishingSpot exampleFishingSpot = new FishingSpot();
-        exampleFishingSpot.setName("武汉中地科技园钓点");
-        exampleFishingSpot.setDescription("美丽的城市湖泊钓点");
-        exampleFishingSpot.setLocation(new LatLng(30.5155, 114.4028)); // 武汉中地科技园坐标
-        exampleFishingSpot.setRange(Arrays.asList(
-                new LatLng(30.5150, 114.4020),
-                new LatLng(30.5160, 114.4030),
-                new LatLng(30.5170, 114.4040)
-        ));
-        exampleFishingSpot.setParkingSpots(Arrays.asList(
-                new LatLng(30.5165, 114.4050)
-        ));
-        exampleFishingSpot.setWalkPaths(Arrays.asList(
-                Arrays.asList(
-                        new LatLng(30.5152, 114.4022),
-                        new LatLng(30.5158, 114.4028)
-                )
-        ));
-//        exampleFishingSpot.setUploadedBy("用户ID");
-
-// 创建Observer用来处理上传响应
-        Observer<LCObject> uploadObserver = new Observer<LCObject>() {
-            @Override
-            public void onSubscribe(Disposable d) {
-                // 可以在这里初始化一些资源，比如显示一个加载框
-                System.out.println("开始上传钓点...");
-            }
-
-            @Override
-            public void onNext(LCObject lcObject) {
-                // 上传成功回调
-                String objectId = lcObject.getObjectId();
-                System.out.println("钓点上传成功，objectId: " + objectId);
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                // 上传失败回调
-                System.err.println("钓点上传失败: " + e.getMessage());
-            }
-
-            @Override
-            public void onComplete() {
-                // 上传操作完成回调，无论成功或失败
-                System.out.println("上传操作完成");
-            }
-        };
-
-// 调用上传方法
-        FishingSpotUploader.uploadFishingSpot(exampleFishingSpot, uploadObserver);
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        Log.d(TAG,"onCreateView");
+        Log.d(TAG, "onCreateView");
         HomeViewModel homeViewModel =
                 new ViewModelProvider(this).get(HomeViewModel.class);
 
@@ -140,21 +89,34 @@ public class HomeFragment extends Fragment {
         btnLocate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(null != lastLocation){
-                    LatLng latLng = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
-                    aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
-                }else {
-                    ToastUtils.showShort("未获取到定位信息");
-                }
+                Intent intent = new Intent();
+                intent.setClass(getActivity(), NaviActivity.class);
+                startActivity(intent);
+//                if (null != lastLocation) {
+//                    LatLng latLng = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
+//                    aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+//                } else {
+//                    ToastUtils.showShort("未获取到定位信息");
+//                }
 
             }
         });
+
+        if (aMap == null) {
+            aMap = mMapView.getMap();
+            setUpMap();
+            try {
+                setupLocationStyle();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         return root;
     }
 
     private void navigateTo(Class<DataCollectionActivity> dataCollectionActivityClass) {
         Intent intent = new Intent();
-        intent.setClass(getActivity(),dataCollectionActivityClass);
+        intent.setClass(getActivity(), dataCollectionActivityClass);
         startActivity(intent);
     }
 
@@ -172,22 +134,16 @@ public class HomeFragment extends Fragment {
 
     @Override
     public void onStart() {
+        Log.d(TAG, "onStart");
         super.onStart();
     }
 
     @Override
     public void onResume() {
+        Log.d(TAG, "onResume");
         super.onResume();
         mMapView.onResume();
-        if (aMap == null) {
-            aMap = mMapView.getMap();
-            setUpMap();
-            try {
-                setupLocationStyle();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+
     }
 
     // 设置定位参数和样式
@@ -240,7 +196,6 @@ public class HomeFragment extends Fragment {
     };
 
     private void setUpMap() {
-        aMap.setMapType(AMap.MAP_TYPE_SATELLITE);
         if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(getActivity(),
@@ -248,11 +203,11 @@ public class HomeFragment extends Fragment {
                     LOCATION_PERMISSION_REQUEST_CODE);
         } else {
             // 配置地图的定位参数
-        MyLocationStyle myLocationStyle;
-        myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
-        myLocationStyle.interval(2000); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
-        myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
-        aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
+            MyLocationStyle myLocationStyle;
+            myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
+            myLocationStyle.interval(2000); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
+            myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
+            aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
             aMap.setMyLocationEnabled(true); // 显示定位层并可触发定位
             aMap.getUiSettings().setMyLocationButtonEnabled(false); // 设置默认定位按钮是否显示
             aMap.moveCamera(CameraUpdateFactory.zoomTo(18)); // 设置缩放级别
@@ -270,33 +225,54 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onCameraChangeFinish(CameraPosition cameraPosition) {
                     // 当地图停止滑动时，加载新区域的钓点
-//                    loadFishingSpots(cameraPosition.target);
+                    loadFishingSpots(cameraPosition.target);
                 }
             });
         }
+
+        aMap.setOnMapLoadedListener(new AMap.OnMapLoadedListener() {
+            @Override
+            public void onMapLoaded() {
+                aMap.showMapText(false);
+            }
+        });
     }
 
     @Override
     public void onPause() {
+        Log.d(TAG, "onPause");
         super.onPause();
         mMapView.onPause();
     }
 
     @Override
     public void onStop() {
+        Log.d(TAG, "onStop");
         super.onStop();
+    }
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        mMapView.onSaveInstanceState(outState);
     }
 
     @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        mMapView.onLowMemory();
+    }
+    @Override
     public void onDestroyView() {
+        Log.d(TAG, "onDestroyView");
         super.onDestroyView();
-        binding = null;
+        isFirstLocate = true;
     }
 
     @Override
     public void onDestroy() {
-        Log.d(TAG,"onDestroy");
+        Log.d(TAG, "onDestroy");
         super.onDestroy();
+        binding = null;
         mMapView.onDestroy();
         if (locationClient != null) {
             locationClient.onDestroy(); // 销毁定位客户端
@@ -353,21 +329,42 @@ public class HomeFragment extends Fragment {
         // 遍历钓点列表，为每个钓点添加Marker和Polygon
         for (FishingSpot spot : fishingSpots) {
             // 添加Marker
-            MarkerOptions markerOptions = new MarkerOptions();
-            markerOptions.position(spot.getLocation());
-            markerOptions.title(spot.getName());
-            markerOptions.snippet(spot.getDescription());
-            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
-            aMap.addMarker(markerOptions);
+            for (int i = 0; i < spot.getSpots().size(); i++) {
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(spot.getSpots().get(i));
+                markerOptions.title(spot.getName());
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+                aMap.addMarker(markerOptions);
+            }
+
+            for (int i = 0; i < spot.getParkingSpots().size(); i++) {
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(spot.getParkingSpots().get(i));
+                markerOptions.title(spot.getName());
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+                aMap.addMarker(markerOptions);
+            }
 
             // 添加Polygon（如果钓点范围数据存在）
             if (spot.getRange() != null && !spot.getRange().isEmpty()) {
-                PolygonOptions polygonOptions = new PolygonOptions();
-                polygonOptions.addAll(spot.getRange());
-                polygonOptions.strokeWidth(5) // 边框宽度
-                        .strokeColor(0xFF0000FF) // 边框颜色
-                        .fillColor(0x220000FF); // 填充颜色
-                aMap.addPolygon(polygonOptions);
+                for (int i = 0; i < spot.getRange().size(); i++) {
+                    PolygonOptions polygonOptions = new PolygonOptions();
+                    polygonOptions.addAll(spot.getRange().get(i));
+                    polygonOptions.strokeWidth(5) // 边框宽度
+                            .strokeColor(0xFF0000FF) // 边框颜色
+                            .fillColor(0x220000FF); // 填充颜色
+                    aMap.addPolygon(polygonOptions);
+                }
+            }
+
+            if (spot.getWalkPaths() != null && !spot.getWalkPaths().isEmpty()) {
+                for (int i = 0; i < spot.getWalkPaths().size(); i++) {
+                    PolylineOptions polylineOptions = new PolylineOptions();
+                    polylineOptions.addAll(spot.getWalkPaths().get(i));
+                    polylineOptions.width(5) // 边框宽度
+                            .color(0xFF0000FF); // 边框颜色
+                    aMap.addPolyline(polylineOptions);
+                }
             }
         }
     }

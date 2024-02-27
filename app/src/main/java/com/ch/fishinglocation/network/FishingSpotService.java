@@ -18,7 +18,7 @@ public class FishingSpotService {
     public static void getFishingSpots(LatLng center, double radius, Observer<List<LCObject>> observer) {
         LCGeoPoint centerPoint = new LCGeoPoint(center.latitude, center.longitude);
         LCQuery<LCObject> query = new LCQuery<>("FishingSpot");
-        query.whereWithinKilometers("location", centerPoint, radius);
+        query.whereWithinKilometers("firstSpot", centerPoint, radius);
         query.findInBackground().subscribe(observer);
     }
 
@@ -31,16 +31,38 @@ public class FishingSpotService {
             spot.setName(lcObject.getString("name"));
             spot.setDescription(lcObject.getString("description"));
 
-            LCGeoPoint lcGeoPoint = lcObject.getLCGeoPoint("location");
-            spot.setLocation(new LatLng(lcGeoPoint.getLatitude(), lcGeoPoint.getLongitude()));
-            // 转换range字段
-            List<LatLng> range = new ArrayList<>();
-            List<Object> lcRangeList = lcObject.getList("range");
-            if (lcRangeList != null) {
-                for (Object obj : lcRangeList) {
+            LCGeoPoint lcGeoPoint = lcObject.getLCGeoPoint("firstSpot");
+            spot.setFirstSpot(new LatLng(lcGeoPoint.getLatitude(), lcGeoPoint.getLongitude()));
+
+            List<LatLng> locations = new ArrayList<>();
+            List<Object> locationSpotsList = lcObject.getList("spots");
+            if (locationSpotsList != null) {
+                for (Object obj : locationSpotsList) {
                     if (obj instanceof LCGeoPoint) {
                         LCGeoPoint geoPoint = (LCGeoPoint) obj;
-                        range.add(new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude()));
+                        locations.add(new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude()));
+                    }
+                }
+            }
+            spot.setSpots(locations);
+
+            // 转换range字段
+            List<List<LatLng>> range = new ArrayList<>();
+            List<Object> lcRangeList = lcObject.getList("range");
+            if (lcRangeList != null) {
+                for (Object pathObj : lcRangeList) {
+                    if (pathObj instanceof List<?>) {
+                        List<?> pathList = (List<?>) pathObj;
+                        List<LatLng> path = new ArrayList<>();
+                        for (Object pointObj : pathList) {
+                            if (pointObj instanceof LCGeoPoint) {
+                                LCGeoPoint geoPoint = (LCGeoPoint) pointObj;
+                                path.add(new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude()));
+                            }
+                        }
+                        if (!path.isEmpty()) {
+                            range.add(path);
+                        }
                     }
                 }
             }

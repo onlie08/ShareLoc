@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.StrictMode;
 
 import com.amap.api.maps.MapsInitializer;
+import com.amap.api.navi.NaviSetting;
 import com.blankj.utilcode.constant.PermissionConstants;
 import com.blankj.utilcode.util.PermissionUtils;
 import com.bytedance.sdk.openadsdk.TTAdSdk;
@@ -94,8 +95,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initMap() {
-        MapsInitializer.updatePrivacyShow(this,true,true);
-        MapsInitializer.updatePrivacyAgree(this,true);
+//        NaviSetting.updatePrivacyShow(this, true, true);
+//        NaviSetting.updatePrivacyAgree(this, true);
+//        MapsInitializer.updatePrivacyShow(this,true,true);
+//        MapsInitializer.updatePrivacyAgree(this,true);
     }
 
 }

@@ -2,9 +2,11 @@ package com.ch.fishinglocation.ui.activity;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
@@ -17,7 +19,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
@@ -37,10 +41,14 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
+import com.amap.api.maps.model.Polygon;
 import com.amap.api.maps.model.PolygonOptions;
+import com.amap.api.maps.model.Polyline;
+import com.amap.api.maps.model.PolylineOptions;
 import com.blankj.utilcode.util.ToastUtils;
 import com.ch.fishinglocation.R;
 import com.ch.fishinglocation.bean.FishingSpot;
+import com.ch.fishinglocation.network.FishingSpotUploader;
 import com.ch.fishinglocation.ui.view.DrawingView;
 import com.ch.fishinglocation.ui.view.MagnifierView;
 import com.ch.fishinglocation.ui.view.MapElementStyleConfig;
@@ -48,6 +56,10 @@ import com.google.gson.Gson;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import cn.leancloud.LCObject;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
 
 public class DataCollectionActivity extends AppCompatActivity {
     private String TAG = this.getClass().getSimpleName();
@@ -66,6 +78,8 @@ public class DataCollectionActivity extends AppCompatActivity {
     private ImageButton btnLocate;
     private MapView mMapView;
     private AMapLocation lastLoc;
+    private TextView tvTip;
+    private TextView tvLocing;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private AMap aMap;
     private boolean isFirstLocate = true; // 用于标记是否是首次定位
@@ -76,10 +90,13 @@ public class DataCollectionActivity extends AppCompatActivity {
 
     private List<Marker> spotMarkerList = new ArrayList<>();
     private List<Marker> parkingMarkerList = new ArrayList<>();
+    private List<Polygon> ployGonList = new ArrayList<>();
+    private List<Polyline> ployLineList = new ArrayList<>();
 
     private MagnifierView magnifierView;
     private ConstraintLayout rootView; // 用于放置放大镜的根布局
-
+    private List<LatLng> walkingPathPoints = new ArrayList<>();
+    private boolean isDrawingMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,12 +104,101 @@ public class DataCollectionActivity extends AppCompatActivity {
         setContentView(R.layout.activity_data_collection);
         mMapView = findViewById(R.id.map_view);
         mMapView.onCreate(savedInstanceState);
-        initMapConfig();
         initView();
         initData();
     }
 
     private void initMapConfig() {
+        aMap.setOnMarkerClickListener(marker -> {
+            Log.d(TAG, "MarkerClick");
+            String message = marker.getTitle().equals("钓位") ? "确定要删除这个钓位吗？" : "确定要删除这个停车位吗？";
+            AlertDialog.Builder builder = new AlertDialog.Builder(DataCollectionActivity.this);
+            builder.setMessage(message);
+            builder.setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // 用户确认删除操作
+                    deleteMarker(marker);
+                }
+            });
+            builder.setNegativeButton("取消", null);
+            AlertDialog dialog = builder.create();
+            dialog.show();
+            return true;
+        });
+
+        aMap.setOnPolylineClickListener(new AMap.OnPolylineClickListener() {
+            @Override
+            public void onPolylineClick(Polyline polyline) {
+                Log.d(TAG, "PolylineClick");
+                AlertDialog.Builder builder = new AlertDialog.Builder(DataCollectionActivity.this);
+                builder.setMessage("确定要删除这个线路吗？");
+                builder.setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // 用户确认删除操作
+                        deletePolyline(polyline);
+                    }
+                });
+                builder.setNegativeButton("取消", null);
+                AlertDialog dialog = builder.create();
+                dialog.show();
+            }
+        });
+
+        aMap.setOnMapClickListener(latLng -> {
+            boolean isPolygon = false;
+            for (Polygon polygon : ployGonList) {
+                if (polygon.contains(latLng)) {
+                    isPolygon = true;
+                }
+            }
+            if (!isPolygon) {
+                return;
+            }
+            Log.d(TAG, "PolygonClick");
+            AlertDialog.Builder builder = new AlertDialog.Builder(DataCollectionActivity.this);
+            builder.setMessage("确定要删除这个钓点范围吗？");
+            builder.setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // 用户确认删除操作
+                    for (Polygon polygon : ployGonList) {
+                        if (polygon.contains(latLng)) {
+                            deletePolygon(polygon);
+                            return;
+                        }
+                    }
+                }
+            });
+            builder.setNegativeButton("取消", null);
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        });
+    }
+
+    private void deletePolygon(Polygon polygon) {
+        // 从地图上移除 Marker
+        polygon.remove();
+        ployGonList.remove(polygon);
+    }
+
+    private void deletePolyline(Polyline polyline) {
+        // 从地图上移除 Marker
+        polyline.remove();
+        ployLineList.remove(polyline);
+    }
+
+
+    // 删除指定的钓点 Marker 以及相关的数据
+    private void deleteMarker(Marker marker) {
+        // 从地图上移除 Marker
+        marker.remove();
+        if (marker.getTitle().equals("钓位")) {
+            spotMarkerList.remove(marker);
+        } else if (marker.getTitle().equals("停车")) {
+            parkingMarkerList.remove(marker);
+        }
     }
 
     private void initView() {
@@ -106,6 +212,8 @@ public class DataCollectionActivity extends AppCompatActivity {
         btnAddWalking = findViewById(R.id.btnAddWalking);
         buttonToggleLayer = findViewById(R.id.buttonToggleLayer);
         buttonSubmit = findViewById(R.id.buttonSubmit);
+        tvTip = findViewById(R.id.tv_tip);
+        tvLocing = findViewById(R.id.tv_locing);
 
         buttonToggleLayer.setOnClickListener(view -> toggleMapLayer());
         btnAddSpot.setOnClickListener(view -> addSpot());
@@ -114,30 +222,92 @@ public class DataCollectionActivity extends AppCompatActivity {
         btnAddWalking.setOnClickListener(view -> addwalking());
         buttonSubmit.setOnClickListener(v -> uploadData());
         btnLocate.setOnClickListener(view -> {
-            if(null != lastLoc){
+            if (null != lastLoc) {
                 LatLng latLng = new LatLng(lastLoc.getLatitude(), lastLoc.getLongitude());
                 aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
-            }else {
+            } else {
                 ToastUtils.showShort("未获取到定位信息");
             }
 
         });
     }
 
-    public boolean uploadData(){
+    public boolean uploadData() {
         //todo 上传FishingSpot数据
+        fishingSpot = new FishingSpot();
+        fishingSpot.setName(editTextName.getText().toString().trim());
+        fishingSpot.setDescription(editTextDescription.getText().toString().trim());
+        if (!spotMarkerList.isEmpty()) {
+            List<LatLng> latLngs = new ArrayList<>();
+            for (Marker marker : spotMarkerList) {
+                latLngs.add(new LatLng(marker.getPosition().latitude, marker.getPosition().longitude));
+            }
+            fishingSpot.setFirstSpot(new LatLng(spotMarkerList.get(0).getPosition().latitude, spotMarkerList.get(0).getPosition().longitude));
+            fishingSpot.setSpots(latLngs);
+        }
+        if (!parkingMarkerList.isEmpty()) {
+            List<LatLng> latLngs = new ArrayList<>();
+            for (Marker marker : parkingMarkerList) {
+                latLngs.add(new LatLng(marker.getPosition().latitude, marker.getPosition().longitude));
+            }
+            fishingSpot.setParkingSpots(latLngs);
+        }
+        if (!ployLineList.isEmpty()) {
+            List<List<LatLng>> latLngs = new ArrayList<>();
+            for (Polyline polyline : ployLineList) {
+                latLngs.add(polyline.getPoints());
+            }
+            fishingSpot.setWalkPaths(latLngs);
+        }
+        if (!ployGonList.isEmpty()) {
+            List<List<LatLng>> latLngs = new ArrayList<>();
+            for (Polygon polygon : ployGonList) {
+                latLngs.add(polygon.getPoints());
+            }
+            fishingSpot.setRange(latLngs);
+        }
+//        fishingSpot.setUploadedBy("13720282090");
+        Observer<LCObject> uploadObserver = new Observer<LCObject>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+                // 可以在这里初始化一些资源，比如显示一个加载框
+                System.out.println("开始上传钓点...");
+            }
+
+            @Override
+            public void onNext(LCObject lcObject) {
+                // 上传成功回调
+                String objectId = lcObject.getObjectId();
+                System.out.println("钓点上传成功，objectId: " + objectId);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                // 上传失败回调
+                System.err.println("钓点上传失败: " + e.getMessage());
+            }
+
+            @Override
+            public void onComplete() {
+                // 上传操作完成回调，无论成功或失败
+                System.out.println("上传操作完成");
+                finish();
+            }
+        };
+// 调用上传方法
+        FishingSpotUploader.uploadFishingSpot(fishingSpot, uploadObserver);
         return false;
     }
 
-    public void addSpot(){
-        addMarkerToMap(SPOT_MARKER);
+    public void addSpot() {
+        spotMarkerList.add(addMarkerToMap(SPOT_MARKER));
     }
 
-    public void addParking(){
-        addMarkerToMap(PARKING_MARKER);
+    public void addParking() {
+        parkingMarkerList.add(addMarkerToMap(PARKING_MARKER));
     }
 
-    public void addPloygon(){
+    public void addPloygon() {
         if (drawingView.getVisibility() == View.GONE) {
             // 启动绘图模式
             drawingView.setVisibility(View.VISIBLE);
@@ -150,31 +320,60 @@ public class DataCollectionActivity extends AppCompatActivity {
             List<LatLng> latLngs = drawingView.getPoints();
             // 在地图上绘制多边形
             if (latLngs != null && latLngs.size() > 1) {
-                aMap.addPolygon(new PolygonOptions()
+                ployGonList.add(aMap.addPolygon(new PolygonOptions()
                         .addAll(latLngs)
                         .fillColor(0x0D00FF00)
                         .strokeColor(0x3300FF00)
-                        .strokeWidth(5));
+                        .strokeWidth(5)));
             }
             drawingView.clear();
         }
     }
 
-    public void addwalking(){
-        //todo 绘制走路线路
+    // 开始绘制走路线路的方法
+    public void startDrawingWalkingPath() {
+        isDrawingMode = true;
+        tvTip.setVisibility(View.VISIBLE);
+        walkingPathPoints.clear(); // 清空之前的路径点
+        drawingView.setVisibility(View.VISIBLE);
+        aMap.getUiSettings().setAllGesturesEnabled(false);
+        drawingView.setProjection(aMap.getProjection()); // 设置Projection对象
     }
 
-    private void addMarkerToMap(int spot_marker) {
-        LatLng latLng = new LatLng(aMap.getCameraPosition().target.latitude,aMap.getCameraPosition().target.longitude);
-        final Marker marker = aMap.addMarker(new MarkerOptions().position(latLng));
-        switch (spot_marker){
-            case 1:
-                spotMarkerList.add(marker);
-                break;
-            case 2:
-                parkingMarkerList.add(marker);
-                break;
+    // 结束绘制走路线路的方法
+    public void stopDrawingWalkingPath() {
+        isDrawingMode = false;
+        aMap.getUiSettings().setAllGesturesEnabled(true);
+        drawingView.setVisibility(View.GONE);
+        tvTip.setVisibility(View.GONE);
+        // 在地图上绘制走路线路
+        walkingPathPoints = drawingView.getPoints();
+        if (!walkingPathPoints.isEmpty()) {
+            PolylineOptions polylineOptions = new PolylineOptions();
+            polylineOptions.addAll(walkingPathPoints)
+                    .width(10) // 线宽
+                    .color(Color.BLUE) // 线颜色
+                    .geodesic(true);
+            ployLineList.add(aMap.addPolyline(polylineOptions));
         }
+        drawingView.clear();
+    }
+
+    public void addwalking() {
+        //todo 绘制走路线路
+        if (isDrawingMode) {
+            stopDrawingWalkingPath();
+        } else {
+            startDrawingWalkingPath();
+        }
+    }
+
+    private Marker addMarkerToMap(int spot_marker) {
+        String title = spot_marker == 1 ? "钓位" : "停车";
+        BitmapDescriptor icon = spot_marker == 1 ? BitmapDescriptorFactory.fromResource(R.drawable.map_spot) : BitmapDescriptorFactory.fromResource(R.drawable.map_paring);
+        LatLng latLng = new LatLng(aMap.getCameraPosition().target.latitude, aMap.getCameraPosition().target.longitude);
+        final Marker marker = aMap.addMarker(new MarkerOptions().position(latLng).title(title).icon(icon));
+        return marker;
     }
 
     /**
@@ -209,6 +408,7 @@ public class DataCollectionActivity extends AppCompatActivity {
             setUpMap();
             try {
                 setupLocationStyle();
+                initMapConfig();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -228,7 +428,7 @@ public class DataCollectionActivity extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
-        Log.d(TAG,"onDestroy");
+        Log.d(TAG, "onDestroy");
         super.onDestroy();
         mMapView.onDestroy();
         if (locationClient != null) {
@@ -271,6 +471,17 @@ public class DataCollectionActivity extends AppCompatActivity {
                 }
             });
         }
+
+        // 设置地图的触摸监听
+        aMap.setOnMapTouchListener(motionEvent -> {
+            // 如果当前是绘制模式，捕获触摸点
+            if (isDrawingMode && motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                LatLng latLng = aMap.getProjection().fromScreenLocation(
+                        new Point((int) motionEvent.getX(), (int) motionEvent.getY())
+                );
+                walkingPathPoints.add(latLng); // 添加触摸点到路径列表
+            }
+        });
     }
 
     // 设置定位参数和样式
@@ -306,6 +517,7 @@ public class DataCollectionActivity extends AppCompatActivity {
                 lastLoc = location;
                 if (isFirstLocate) {
                     // 首次定位成功，将地图移动到定位位置
+                    tvLocing.setText("已定位");
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
                     isFirstLocate = false; // 更新首次定位标记
@@ -319,4 +531,6 @@ public class DataCollectionActivity extends AppCompatActivity {
             }
         }
     };
+
+
 }

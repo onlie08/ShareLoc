@@ -2,39 +2,24 @@ package com.ch.fishinglocation.bean;
 
 import com.amap.api.maps.model.LatLng;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FishingSpot {
     private String id; // 钓点的唯一标识符
     private String name; // 钓点名称
     private String description; // 钓点描述
-    private LatLng location; // 钓点坐标
-    private List<LatLng> range; // 钓点范围，一系列的坐标点构成一个多边形
-    private List<LatLng> parkingSpots; // 停车位置，可能有多个停车点
-    private List<List<LatLng>> walkPaths; // 步行路径，每个路径是由多个坐标点构成的列表
+    private LatLng firstSpot; // 第一个钓点
+    /**
+     * type 1:黑坑 2:收费野钓 3:免费野钓
+     */
+    private int type;
+    private List<LatLng> spots = new ArrayList<>(); // 钓点坐标集合
+    private List<List<LatLng>> range = new ArrayList<>(); // 钓点范围，一系列的坐标点构成一个多边形
+    private List<LatLng> parkingSpots = new ArrayList<>(); // 停车位置，可能有多个停车点
+    private List<List<LatLng>> walkPaths = new ArrayList<>(); // 步行路径，每个路径是由多个坐标点构成的列表
     private String uploadedBy; // 上传钓点的用户的标识符
 
-    // 省略构造函数、getter和setter方法
-
-    public FishingSpot() {
-        // 默认构造函数
-    }
-
-    // 构造函数，参数初始化
-    public FishingSpot(String id, String name, String description, LatLng location,
-                       List<LatLng> range, List<LatLng> parkingSpots,
-                       List<List<LatLng>> walkPaths, String uploadedBy) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.location = location;
-        this.range = range;
-        this.parkingSpots = parkingSpots;
-        this.walkPaths = walkPaths;
-        this.uploadedBy = uploadedBy;
-    }
-
-    // Getter和Setter方法
     public String getId() {
         return id;
     }
@@ -59,19 +44,27 @@ public class FishingSpot {
         this.description = description;
     }
 
-    public LatLng getLocation() {
-        return location;
+    public LatLng getFirstSpot() {
+        return firstSpot;
     }
 
-    public void setLocation(LatLng location) {
-        this.location = location;
+    public void setFirstSpot(LatLng firstSpot) {
+        this.firstSpot = firstSpot;
     }
 
-    public List<LatLng> getRange() {
+    public List<LatLng> getSpots() {
+        return spots;
+    }
+
+    public void setSpots(List<LatLng> spots) {
+        this.spots = spots;
+    }
+
+    public List<List<LatLng>> getRange() {
         return range;
     }
 
-    public void setRange(List<LatLng> range) {
+    public void setRange(List<List<LatLng>> range) {
         this.range = range;
     }
 
@@ -97,6 +90,14 @@ public class FishingSpot {
 
     public void setUploadedBy(String uploadedBy) {
         this.uploadedBy = uploadedBy;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
     }
 }
 

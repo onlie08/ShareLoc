@@ -21,18 +21,27 @@ public class FishingSpotUploader {
         lcFishingSpot.put("name", spot.getName());
         lcFishingSpot.put("description", spot.getDescription());
         lcFishingSpot.put("uploadedBy", spot.getUploadedBy());
-
-        // 设置钓点坐标
-        LatLng location = spot.getLocation();
-        if (location != null) {
-            LCGeoPoint lcLocation = new LCGeoPoint(location.latitude, location.longitude);
-            lcFishingSpot.put("location", lcLocation);
+        if(spot.getFirstSpot() != null ){
+            LCGeoPoint lcGeoPoint = new LCGeoPoint();
+            lcGeoPoint.setLatitude(spot.getFirstSpot().latitude);
+            lcGeoPoint.setLongitude(spot.getFirstSpot().longitude);
+            lcFishingSpot.put("firstSpot", lcGeoPoint);
         }
+        // 设置钓点坐标
+        List<LCGeoPoint> locationSpots = new ArrayList<>();
+        for (LatLng latLng : spot.getSpots()) {
+            locationSpots.add(new LCGeoPoint(latLng.latitude, latLng.longitude));
+        }
+        lcFishingSpot.put("spots", locationSpots);
 
         // 设置钓点范围
-        List<LCGeoPoint> lcRange = new ArrayList<>();
-        for (LatLng latLng : spot.getRange()) {
-            lcRange.add(new LCGeoPoint(latLng.latitude, latLng.longitude));
+        List<List<LCGeoPoint>> lcRange = new ArrayList<>();
+        for (List<LatLng> path : spot.getRange()) {
+            List<LCGeoPoint> lcPath = new ArrayList<>();
+            for (LatLng latLng : path) {
+                lcPath.add(new LCGeoPoint(latLng.latitude, latLng.longitude));
+            }
+            lcRange.add(lcPath);
         }
         lcFishingSpot.put("range", lcRange);
 
