@@ -78,6 +78,7 @@ dependencies {
     implementation 'com.blankj:utilcodex:1.31.0'
     implementation 'com.tencent.bugly:crashreport:2.6.6.1'
     implementation 'cn.leancloud:storage-android:8.1.1'
+    implementation 'com.tencent.mm.opensdk:wechat-sdk-android-with-mta:+'
     //3D地图so及jar
 //    implementation 'com.amap.api:3dmap:latest.integration'
 //    //定位功能

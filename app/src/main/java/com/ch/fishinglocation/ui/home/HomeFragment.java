@@ -3,6 +3,7 @@ package com.ch.fishinglocation.ui.home;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -37,6 +38,7 @@ import com.amap.api.maps.model.PolygonOptions;
 import com.amap.api.maps.model.Polyline;
 import com.amap.api.maps.model.PolylineOptions;
 import com.blankj.utilcode.util.ToastUtils;
+import com.ch.fishinglocation.MyApplication;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.databinding.FragmentHomeBinding;
 import com.ch.fishinglocation.network.FishingSpotService;
@@ -236,6 +238,13 @@ public class HomeFragment extends Fragment {
                 aMap.showMapText(false);
             }
         });
+
+        Location location = ((MyApplication) getActivity().getApplication()).getGlobalLocation();
+        //获取全局位置
+        if(null != location){
+            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,18));
+        }
     }
 
     @Override
