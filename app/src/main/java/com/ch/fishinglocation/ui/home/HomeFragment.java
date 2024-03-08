@@ -14,6 +14,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
@@ -32,22 +34,28 @@ import com.amap.api.maps.MapView;
 import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
+import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
+import com.amap.api.maps.model.Polygon;
 import com.amap.api.maps.model.PolygonOptions;
 import com.amap.api.maps.model.Polyline;
 import com.amap.api.maps.model.PolylineOptions;
 import com.blankj.utilcode.util.ToastUtils;
 import com.ch.fishinglocation.MyApplication;
+import com.ch.fishinglocation.R;
 import com.ch.fishinglocation.bean.FishingSpot;
 import com.ch.fishinglocation.databinding.FragmentHomeBinding;
 import com.ch.fishinglocation.network.FishingSpotService;
 import com.ch.fishinglocation.network.FishingSpotUploader;
 import com.ch.fishinglocation.ui.activity.DataCollectionActivity;
 import com.ch.fishinglocation.ui.activity.NaviActivity;
+import com.ch.fishinglocation.ui.view.DialogManager;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.gson.Gson;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import cn.leancloud.LCObject;
@@ -58,7 +66,11 @@ public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
     private MapView mMapView;
     private TextView tvLocing;
+    private TextView tvNameInfo;
+    private TextView tvInfo;
     private ImageButton btnLocate;
+    private ConstraintLayout constraintInfo;
+    private CardView cardInfo;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private AMap aMap;
     private AMapLocation lastLocation;
@@ -88,6 +100,10 @@ public class HomeFragment extends Fragment {
         binding.btnUpload.setOnClickListener(view -> navigateTo(DataCollectionActivity.class));
         tvLocing = binding.tvLocing;
         btnLocate = binding.btnLocate;
+        constraintInfo = binding.constraintInfo;
+        cardInfo = binding.cardInfo;
+        tvNameInfo = binding.tvNameInfo;
+        tvInfo = binding.tvInfo;
         btnLocate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -213,6 +229,7 @@ public class HomeFragment extends Fragment {
             aMap.setMyLocationEnabled(true); // 显示定位层并可触发定位
             aMap.getUiSettings().setMyLocationButtonEnabled(false); // 设置默认定位按钮是否显示
             aMap.moveCamera(CameraUpdateFactory.zoomTo(18)); // 设置缩放级别
+            setMarkerListener();
             // 设置地图的点击事件
             aMap.setOnMapClickListener(latLng -> {
                 // 点击地图其他地方隐藏钓点信息窗体
@@ -327,6 +344,8 @@ public class HomeFragment extends Fragment {
         FishingSpotService.getFishingSpots(currentUserLocation, searchRadius, observer);
     }
 
+    // 定义一个HashMap来关联Marker的id和FishingSpot对象
+    HashMap<String, FishingSpot> markerMap = new HashMap<>();
     private void updateMapWithFishingSpots(List<FishingSpot> fishingSpots) {
         if (aMap == null || fishingSpots == null) {
             // 地图尚未初始化或钓点列表为空
@@ -341,17 +360,19 @@ public class HomeFragment extends Fragment {
             for (int i = 0; i < spot.getSpots().size(); i++) {
                 MarkerOptions markerOptions = new MarkerOptions();
                 markerOptions.position(spot.getSpots().get(i));
-                markerOptions.title(spot.getName());
+                markerOptions.title("推荐钓点"+i);
                 markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
-                aMap.addMarker(markerOptions);
+                Marker marker = aMap.addMarker(markerOptions);
+                markerMap.put(marker.getId(), spot);
             }
 
             for (int i = 0; i < spot.getParkingSpots().size(); i++) {
                 MarkerOptions markerOptions = new MarkerOptions();
                 markerOptions.position(spot.getParkingSpots().get(i));
-                markerOptions.title(spot.getName());
+                markerOptions.title("推荐停车"+i);
                 markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
-                aMap.addMarker(markerOptions);
+                Marker marker = aMap.addMarker(markerOptions);
+                markerMap.put(marker.getId(), spot);
             }
 
             // 添加Polygon（如果钓点范围数据存在）
@@ -362,7 +383,8 @@ public class HomeFragment extends Fragment {
                     polygonOptions.strokeWidth(5) // 边框宽度
                             .strokeColor(0xFF0000FF) // 边框颜色
                             .fillColor(0x220000FF); // 填充颜色
-                    aMap.addPolygon(polygonOptions);
+                    Polygon polygon = aMap.addPolygon(polygonOptions);
+                    markerMap.put(polygon.getId(), spot);
                 }
             }
 
@@ -372,7 +394,8 @@ public class HomeFragment extends Fragment {
                     polylineOptions.addAll(spot.getWalkPaths().get(i));
                     polylineOptions.width(5) // 边框宽度
                             .color(0xFF0000FF); // 边框颜色
-                    aMap.addPolyline(polylineOptions);
+                    Polyline polyline = aMap.addPolyline(polylineOptions);
+                    markerMap.put(polyline.getId(), spot);
                 }
             }
         }
@@ -382,9 +405,27 @@ public class HomeFragment extends Fragment {
     private void setMarkerListener() {
         aMap.setOnMarkerClickListener(marker -> {
             // 这里实现点击marker后如何处理，例如弹出详情或导航
-            startNavigation(marker.getPosition()); // 示例：启动导航
+//            startNavigation(marker.getPosition()); // 示例：启动导航
+            FishingSpot spot = markerMap.get(marker.getId());
+            if (spot != null) {
+                // 使用FishingSpot对象的数据
+                showSpotInfo(spot);
+            }
+            // 创建DialogManager实例
+//            DialogManager dialogManager = new DialogManager(getActivity());
+            // 展示钓点详细信息的Dialog
+//            dialogManager.showFishingSpotDetailDialog(spot);
             return true;
         });
+    }
+
+    private void showSpotInfo(FishingSpot spot){
+        cardInfo.setVisibility(View.VISIBLE);
+        tvNameInfo.setText(spot.getName());
+        tvInfo.setText(spot.getDescription());
+    }
+    private void hideSpotInfo(){
+        cardInfo.setVisibility(View.GONE);
     }
 
     private void startNavigation(LatLng latLng) {
